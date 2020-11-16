@@ -1,5 +1,7 @@
+import 'dart:ui';
+import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
-import 'facts_message.dart';
+import 'fact_message.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:flutter_dialogflow/dialogflow_v2.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
@@ -15,13 +17,13 @@ class FlutterFactsChatBot extends StatefulWidget {
   }
   enum TtsState { playing }
 class _FlutterFactsChatBotState extends State<FlutterFactsChatBot> {
-  final List<Facts> messageList = <Facts>[];
-  final TextEditingController _textController = new TextEditingController();
+    final List<Facts> messageList = <Facts>[];
+    final TextEditingController _textController = new TextEditingController();
     FlutterTts flutterTts;
     stt.SpeechToText _speech;
     bool _isListening = false;
     TtsState ttsState = TtsState.playing;
-  //String _text;
+    
         @override
         initState() {
           super.initState();
@@ -40,21 +42,23 @@ class _FlutterFactsChatBotState extends State<FlutterFactsChatBot> {
         });
         }
 
-
-   
   Widget _queryInputWidget(BuildContext context) {
     return Card(
       margin: EdgeInsets.all(10),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(30))),
       child: Padding(
-        padding: const EdgeInsets.only(left:10.0, right: 8),
+        padding: const EdgeInsets.only(left:10.0, right: 8,top:10),
         child: Row(
           children: <Widget>[
             Flexible(
               child: TextField(
+               keyboardType: TextInputType.multiline,
+               //minLines: 1
+               //maxLength: 200,
+               maxLines: 10,
                 controller: _textController,
                 onSubmitted: _submitQuery,
-                decoration: InputDecoration.collapsed(hintText: "Send a message"),
+                decoration: InputDecoration.collapsed(hintText: "Add your working details"),
               ),
             ),
 
@@ -62,7 +66,7 @@ class _FlutterFactsChatBotState extends State<FlutterFactsChatBot> {
               margin: EdgeInsets.symmetric(horizontal: 8.0),
               child: IconButton(
                   icon: Icon(Icons.send, color: Colors.blue[400],),
-                  onPressed: () => _submitQuery(_textController.text)),
+                  onPressed: () => (_textController.text.isNotEmpty)?_submitQuery(_textController.text) : null ),
             ),
              Container(
               
@@ -83,41 +87,28 @@ class _FlutterFactsChatBotState extends State<FlutterFactsChatBot> {
                     ),
                 ),
             ),       
-        ],
-          
+           ],
         ),
-        
       ),
     );
   }
 
-  void agentResponse(query) async {
-    _textController.clear();
-    AuthGoogle authGoogle = await AuthGoogle(fileJson: ".....").build();
-    Dialogflow dialogFlow = Dialogflow(authGoogle: authGoogle, language: Language.english);
-    AIResponse response = await dialogFlow.detectIntent(query);
-    Facts message = Facts(
-      text: response.getMessage() ??
-          CardDialogflow(response.getListMessage()[0]).title,   
-      name: "Flutter",
-      type: false,
-    );
-    setState(() {
-      messageList.insert(0, message);
-      // flutterTts.speak(response.getListMessage()[0].toString());
-        flutterTts.speak(response.getMessage().toString());
-              // _speak();
-            //  Future _speak() async {
-            //   if (messageList != null) {
-            //     if (messageList.isNotEmpty) {
-            //       var result = await 
-          
-            //       if (result == 1) setState(() => ttsState = TtsState.playing);
-            //     }
-            //   }
-            // }  
-    });
-  }
+        void agentResponse(query) async {
+          _textController.clear();
+          AuthGoogle authGoogle = await AuthGoogle(fileJson: "assets/newagent-hw9t-e08fd778a12f.json").build();
+          Dialogflow dialogFlow = Dialogflow(authGoogle: authGoogle, language: Language.english);
+          AIResponse response = await dialogFlow.detectIntent(query);
+          Facts message = Facts(
+            text: response.getMessage() ??
+                CardDialogflow(response.getListMessage()[0]).title,   
+            name: "Flutter",
+            type: false,
+          );
+          setState(() {
+            messageList.insert(0, message);
+              flutterTts.speak(response.getMessage().toString());
+          });
+        }
       void _listen() async {
         if (!_isListening) {
           bool available = await _speech.initialize(
@@ -129,10 +120,7 @@ class _FlutterFactsChatBotState extends State<FlutterFactsChatBot> {
             _speech.listen(
                 onResult: (val) => setState(() {
                   _textController.text = val.recognizedWords;
-                  // if(_textController != null){
-                    // messageList.insert(0, message);
-                      
-                  //  }
+                 
                 }),
               );
             }
@@ -142,24 +130,22 @@ class _FlutterFactsChatBotState extends State<FlutterFactsChatBot> {
                   }
         }
 
+            DateFormat dateFormat = DateFormat("yyyy/MM/dd   HH:mm:a");
             void _submitQuery(String text) {
               _textController.clear();
+
               Facts message = new Facts(
                 text: text,
                 name: "User",
                 type: true,
-              );
-            
-              setState(() {
-            // if(_textController != null){
-              
-                messageList.insert(0, message);
-              //}
-                // _speak();
+                date:dateFormat.format(DateTime.now()).toString(),
+             );
+             setState(() {
+              messageList.insert(0, message);
               });
-
-              agentResponse(text);
+               agentResponse(text);
             }
+
 
   @override
   Widget build(BuildContext context) {
@@ -171,14 +157,15 @@ class _FlutterFactsChatBotState extends State<FlutterFactsChatBot> {
         elevation: 0,
       ),
       body: Column(children: <Widget>[
+         _queryInputWidget(context),
         Flexible(
             child: ListView.builder(
               padding: EdgeInsets.all(8.0),
-              reverse: true, //To keep the latest messages at the bottom
+              reverse: false, //To keep the latest messages at the top
               itemBuilder: (_, int index) => messageList[index],
               itemCount: messageList.length,
             )),
-        _queryInputWidget(context),
+       
       ]),
     );
   }
